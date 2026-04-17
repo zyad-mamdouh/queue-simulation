@@ -8,14 +8,25 @@ using namespace std;
 void ConsoleUI::run() {
     int choice;
 
-    // إضافة Servers مبدئيًا
+   
     controller.addServer(new Server());
     controller.addServer(new Server());
 
-    // إضافة Customers مبدئيًا
-    controller.addCustomer(new Customer(1, 0, 3));
+    controller.addCustomer(new Customer(1, 0, 1));
     controller.addCustomer(new Customer(2, 0, 5));
     controller.addCustomer(new Customer(3, 0, 2));
+    
+    controller.addCustomer(new Customer(4, 0, 7));
+    controller.addCustomer(new Customer(5, 4, 2));
+    controller.addCustomer(new Customer(6, 0, 2));
+    
+    controller.addCustomer(new Customer(7, 0, 3));
+    controller.addCustomer(new Customer(8, 2, 5));
+    controller.addCustomer(new Customer(9, 0, 11));
+    
+    controller.addCustomer(new Customer(10, 0, 3));
+    controller.addCustomer(new Customer(11, 0, 5));
+    controller.addCustomer(new Customer(12, 9, 1));
 
     while (true) {
         displayMenu();
