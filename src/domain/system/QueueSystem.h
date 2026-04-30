@@ -2,6 +2,7 @@
 #define QUEUE_SYSTEM_H
 
 #include <vector>
+#include "../model/CustomerGenerator.h"
 #include "../model/Queue.h"
 #include "../model/ServerList.h"
 
@@ -9,6 +10,7 @@ class QueueSystem {
 private:
     Queue queue;
     ServerList serverList;
+    CustomerGenerator generator;
     std::vector<Customer*> pendingArrivals;
     int currentTime;
     int totalCustomersServed;
@@ -35,6 +37,9 @@ public:
     double getAverageWaitingTime() const;
     double getAverageQueueLength() const;
     double getServerUtilization() const;
+
+private:
+    void assignCustomers();
 };
 
 #endif

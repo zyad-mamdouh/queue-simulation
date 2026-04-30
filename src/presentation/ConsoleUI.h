@@ -11,9 +11,13 @@ public:
     void run();
 
 private:
+    void displayHeader() const;
     void displayMenu();
     void displayState();
+    void displayQueue() const;
+    void displayServers() const;
     void displayMetrics() const;
+    int readInt(const char* prompt) const;
 };
 
 #endif

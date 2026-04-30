@@ -1,12 +1,14 @@
 #include "QueueSystem.h"
 
 QueueSystem::QueueSystem()
-    : currentTime(0),
+    : generator(0.8, 1, 5, 3),
+      currentTime(0),
       totalCustomersServed(0),
       totalWaitingTime(0),
       totalQueueLength(0),
       totalBusyServerTime(0),
-      stepsExecuted(0) {}
+      stepsExecuted(0)
+      {}
 
 void QueueSystem::addCustomer(Customer* customer) {
     if (customer != nullptr) {
@@ -22,7 +24,27 @@ void QueueSystem::runSimulationStep() {
     int customersCompletingThisStep = 0;
     long long waitingTimeFromCompletedCustomers = 0;
 
-    // Collect metrics from server state at the beginning of the step.
+    // 1) Generate new customers. Some may be scheduled for future steps.
+    std::vector<Customer*> generatedCustomers = generator.generate(currentTime);
+    for (Customer* customer : generatedCustomers) {
+        pendingArrivals.push_back(customer);
+    }
+
+    // 2) Add customers that arrive at this current time to the queue.
+    for (auto it = pendingArrivals.begin(); it != pendingArrivals.end();) {
+        Customer* customer = *it;
+        if (customer != nullptr && customer->getArrivalTime() <= currentTime) {
+            queue.enqueue(customer);
+            it = pendingArrivals.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    // 3) Assign customers before servers process this step.
+    assignCustomers();
+
+    // 4) Busy servers process one unit of transaction time.
     const std::vector<Server*>& servers = serverList.getServers();
     for (Server* server : servers) {
         Customer* active = server->getCurrentCustomer();
@@ -34,27 +56,22 @@ void QueueSystem::runSimulationStep() {
             }
         }
     }
-
-    // 1) Busy servers process one unit of transaction time.
     serverList.updateServers();
     totalCustomersServed += customersCompletingThisStep;
     totalWaitingTime += waitingTimeFromCompletedCustomers;
 
-    // 2) Every customer still waiting in queue waits one more time unit.
+    // 5) Assign again after servers that finished this step become free.
+    assignCustomers();
+
+    // 6) Every customer still waiting in queue waits one more time unit.
     queue.incrementWaitingTimes();
 
-    // 3) Add customers that arrive at this current time.
-    for (auto it = pendingArrivals.begin(); it != pendingArrivals.end();) {
-        Customer* customer = *it;
-        if (customer != nullptr && customer->getArrivalTime() <= currentTime) {
-            queue.enqueue(customer);
-            it = pendingArrivals.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    totalQueueLength += queue.size();
+    stepsExecuted++;
+    currentTime++;
+}
 
-    // 4) Send the customer at the front of the FIFO queue to free servers.
+void QueueSystem::assignCustomers() {
     while (!queue.isEmpty()) {
         Server* availableServer = serverList.findAvailableServer();
         if (availableServer == nullptr) {
@@ -62,10 +79,6 @@ void QueueSystem::runSimulationStep() {
         }
         availableServer->serve(queue.dequeue());
     }
-
-    totalQueueLength += queue.size();
-    stepsExecuted++;
-    currentTime++;
 }
 
 void QueueSystem::runSimulation(int steps) {
