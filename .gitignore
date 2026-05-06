@@ -1,1 +1,29 @@
+# Build outputs
+queue_sim
+queue_sim_gui
 *.exe
+*.out
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+build/
+cmake-build-*/
+
+# Runtime/local state
+imgui.ini
+
+# Unused Dear ImGui extras for this app build
+imgui/docs/
+imgui/examples/
+imgui/misc/
+
+# Editor and local assistant files
+.vscode/
+.idea/
+.codex/
+
+# OS files
+.DS_Store
+Thumbs.db

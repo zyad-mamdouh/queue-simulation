@@ -8,7 +8,9 @@ CustomerGenerator::CustomerGenerator(
     int minServiceTime,
     int maxServiceTime,
     int maxArrivalDelay
+    
 )
+// Initialize member variables and random distributions
     : arrivalRate(arrivalRate),
       minServiceTime(minServiceTime),
       maxServiceTime(maxServiceTime),

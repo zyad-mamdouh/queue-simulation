@@ -1,7 +1,14 @@
-#include "presentation/ConsoleUI.h"
+#include "presentation/GuiUI.h"
 
-int main() {
+int main()
+{
+    GuiUI ui;
+    ui.run();
+    return 0;
+    /*
     ConsoleUI ui;
     ui.run();
     return 0;
+    */
+    
 }

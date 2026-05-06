@@ -1,111 +1,104 @@
 # Queue Simulation System
 
-## Overview
+Queue Simulation System is a C++17 discrete-time queue simulator for a multi-server service system. Customers are generated over time, wait in a FIFO queue, get assigned to the first available server, and complete service after their transaction time reaches zero.
 
-Queue Simulation System is a C++17 console application that simulates a multi-server waiting line using discrete time steps.
+The current entry point runs a graphical Dear ImGui interface powered by SDL2 and OpenGL. A console UI is still present in the codebase and can be re-enabled from `src/Main.cpp` if needed.
 
-The program models customers arriving over time, waiting in a FIFO queue, being assigned to available servers, and completing service after a configurable service duration. It also reports basic performance metrics such as total served customers, average waiting time, average queue length, and server utilization.
+## Quick Answer: Where Is `queue_sim_gui`?
 
-The current implementation uses dynamic customer generation instead of a fixed hard-coded customer list.
+`queue_sim_gui` is not source code. It is the compiled Linux executable produced by `g++`.
+
+If the file does not exist after cloning the repository, build it from the project root:
+
+```bash
+git submodule update --init --recursive
+```
+
+```bash
+g++ -std=c++17 \
+  -Isrc \
+  -Isrc/domain/model \
+  -Isrc/domain/enums \
+  -Iimgui \
+  -Iimgui/backends \
+  -I/usr/include/SDL2 \
+  -D_REENTRANT \
+  src/Main.cpp \
+  src/application/SimulationController.cpp \
+  src/presentation/GuiUI.cpp \
+  src/domain/model/Customer.cpp \
+  src/domain/model/CustomerGenerator.cpp \
+  src/domain/model/Queue.cpp \
+  src/domain/model/Server.cpp \
+  src/domain/model/ServerList.cpp \
+  src/domain/system/QueueSystem.cpp \
+  imgui/imgui.cpp \
+  imgui/imgui_draw.cpp \
+  imgui/imgui_tables.cpp \
+  imgui/imgui_widgets.cpp \
+  imgui/backends/imgui_impl_sdl2.cpp \
+  imgui/backends/imgui_impl_opengl3.cpp \
+  -o queue_sim_gui \
+  -lSDL2 \
+  -lGL
+```
+
+Then run it:
+
+```bash
+./queue_sim_gui
+```
+
+## Requirements
+
+On Ubuntu/Debian-based Linux:
+
+```bash
+sudo apt update
+sudo apt install g++ libsdl2-dev libgl1-mesa-dev
+```
+
+You need:
+
+- `g++` with C++17 support
+- SDL2 development headers and library
+- OpenGL development library
+- the `imgui/` submodule initialized with `git submodule update --init --recursive`
 
 ## Features
 
-- Discrete step-based simulation
-- Dynamic customer generation during runtime
-- Support for future customer arrivals
-- FIFO queue behavior
-- Multiple server support
-- Automatic assignment of queued customers to available servers
-- Per-customer waiting time and remaining service time tracking
-- Interactive console menu
-- Input validation for console choices
-- Summary metrics after running multiple steps
+- Graphical simulation view using Dear ImGui, SDL2, and OpenGL
+- Step-by-step simulation controls
+- Run-N-steps control
+- Auto-run mode with configurable delay
+- FIFO queue visualization
+- Multiple server visualization
+- Dynamic customer generation using random distributions
+- Metrics panel with served customers, waiting time, queue length, and server utilization
+- Console UI implementation kept in `src/presentation/ConsoleUI.*`
+- Layered source organization: presentation, application, and domain
 
-## Architecture
+## How The Simulation Works
 
-The project uses a simple layered structure:
+Each call to `QueueSystem::runSimulationStep()` does the following:
 
-```text
-src/
-|-- Main.cpp
-|-- presentation/
-|   |-- ConsoleUI.h
-|   `-- ConsoleUI.cpp
-|-- application/
-|   |-- SimulationController.h
-|   `-- SimulationController.cpp
-`-- domain/
-    |-- enums/
-    |   `-- ServerStatus.hpp
-    |-- interfaces/
-    |   `-- QueueInterface.h
-    |-- model/
-    |   |-- Customer.h
-    |   |-- Customer.cpp
-    |   |-- CustomerGenerator.h
-    |   |-- CustomerGenerator.cpp
-    |   |-- Queue.h
-    |   |-- Queue.cpp
-    |   |-- Server.h
-    |   |-- Server.cpp
-    |   |-- ServerList.h
-    |   `-- ServerList.cpp
-    `-- system/
-        |-- QueueSystem.h
-        `-- QueueSystem.cpp
-```
+1. Generate new customers for the current time step.
+2. Store generated customers in `pendingArrivals`; some may be scheduled for future arrival times.
+3. Move customers whose arrival time is now due into the FIFO queue.
+4. Assign waiting customers to available servers before service processing.
+5. Let busy servers process one time unit.
+6. Count customers whose service completes during the step.
+7. Assign more waiting customers if servers became free.
+8. Increment waiting time for customers still left in the queue.
+9. Record queue length and advance simulation time.
 
-## Main Components
+Because assignment happens both before and after server processing, a server that finishes a customer during a step can immediately receive another waiting customer in the same step.
 
-### `ConsoleUI`
+## Customer Generation
 
-Handles user interaction through the terminal.
+Customer generation is handled by `CustomerGenerator`.
 
-Responsibilities:
-
-- Display the application header and menu
-- Read and validate user input
-- Run one step or multiple simulation steps
-- Display queue state, server state, and metrics
-- Create the default number of servers at startup
-
-The current console setup creates `2` servers.
-
-### `SimulationController`
-
-Acts as a thin application layer between the console UI and the simulation engine.
-
-Responsibilities:
-
-- Forward commands from the UI to `QueueSystem`
-- Expose read-only simulation state to the UI
-
-### `QueueSystem`
-
-The core simulation engine.
-
-Responsibilities:
-
-- Own the queue, server list, customer generator, and pending arrivals
-- Advance the simulation one step at a time
-- Move arrived customers into the queue
-- Assign queued customers to available servers
-- Update server processing
-- Track performance metrics
-
-### `CustomerGenerator`
-
-Generates customers dynamically during simulation.
-
-Current behavior:
-
-- Uses `<random>` instead of `rand()`
-- Uses a Poisson distribution for the number of generated customers per step
-- Uses a uniform distribution for service time
-- Uses a geometric distribution for arrival delay
-- Can generate customers scheduled for future simulation times
-
-Current default configuration in `QueueSystem`:
+The current default configuration is set in `QueueSystem`:
 
 ```cpp
 generator(0.8, 1, 5, 3)
@@ -118,90 +111,132 @@ Meaning:
 - maximum service time: `5`
 - maximum arrival delay: `3`
 
+The generator uses:
+
+- `std::poisson_distribution<int>` for number of arrivals per step
+- `std::uniform_int_distribution<int>` for service time
+- `std::geometric_distribution<int>` for arrival delay
+
+## Project Structure
+
+```text
+queue-simulation-system/
+|-- README.md
+|-- src/
+|   |-- Main.cpp
+|   |-- application/
+|   |   |-- SimulationController.cpp
+|   |   `-- SimulationController.h
+|   |-- presentation/
+|   |   |-- ConsoleUI.cpp
+|   |   |-- ConsoleUI.h
+|   |   |-- GuiUI.cpp
+|   |   `-- GuiUI.h
+|   `-- domain/
+|       |-- enums/
+|       |   `-- ServerStatus.hpp
+|       |-- interfaces/
+|       |   `-- QueueInterface.h
+|       |-- model/
+|       |   |-- Customer.cpp
+|       |   |-- Customer.h
+|       |   |-- CustomerGenerator.cpp
+|       |   |-- CustomerGenerator.h
+|       |   |-- Queue.cpp
+|       |   |-- Queue.h
+|       |   |-- Server.cpp
+|       |   |-- Server.h
+|       |   |-- ServerList.cpp
+|       |   `-- ServerList.h
+|       `-- system/
+|           |-- QueueSystem.cpp
+|           `-- QueueSystem.h
+`-- imgui/
+    |-- imgui.cpp
+    |-- imgui_draw.cpp
+    |-- imgui_tables.cpp
+    |-- imgui_widgets.cpp
+    `-- backends/
+        |-- imgui_impl_opengl3.cpp
+        |-- imgui_impl_sdl2.cpp
+        |-- imgui_impl_opengl3.h
+        `-- imgui_impl_sdl2.h
+```
+
+## Main Components
+
+### `GuiUI`
+
+Runs the graphical application. It creates the SDL2 window, initializes ImGui/OpenGL, renders the queue scene, handles buttons and sliders, and displays metrics and logs.
+
+### `ConsoleUI`
+
+Provides a terminal-based menu for running one step or multiple steps. It is not the active entry point right now, but it remains available in the code.
+
+### `SimulationController`
+
+Acts as a small application layer between the UI and the simulation engine. It forwards commands and exposes read-only state for display.
+
+### `QueueSystem`
+
+Owns the queue, server list, customer generator, pending arrivals, simulation time, and metrics. This is the core domain service.
+
+### `CustomerGenerator`
+
+Creates customers dynamically during the simulation and can schedule arrivals for future simulation times.
+
 ### `Queue`
 
-Represents the FIFO waiting line.
-
-Responsibilities:
-
-- Enqueue arriving customers
-- Dequeue customers for service
-- Increment waiting time for customers still waiting
-- Provide a snapshot for display
+Wraps a FIFO `std::queue<Customer*>`, supports enqueue/dequeue operations, increments waiting times, and exposes snapshots for the UI.
 
 ### `Server`
 
-Represents one service station.
-
-Responsibilities:
-
-- Serve one customer at a time
-- Track whether it is free or busy
-- Reduce the current customer's remaining service time each step
-- Become free when service completes
+Represents one service station. A server can serve one customer, process one unit of work per step, and become free when service is complete.
 
 ### `ServerList`
 
-Manages all servers.
-
-Responsibilities:
-
-- Store servers
-- Find the first available server
-- Update all servers during a simulation step
+Stores all servers, finds the first available server, and updates all servers during each simulation step.
 
 ### `Customer`
 
-Represents a single customer.
-
-Stores:
-
-- customer number
-- arrival time
-- waiting time
-- remaining service time
-
-## Simulation Step Order
-
-Each call to `runSimulationStep()` follows this order:
-
-1. Generate new customers.
-2. Store generated customers in `pendingArrivals`.
-3. Move customers whose arrival time has arrived into the queue.
-4. Assign queued customers to free servers before processing.
-5. Update all busy servers for one time unit.
-6. Assign queued customers again if a server became free after processing.
-7. Increment waiting time for customers still left in the queue.
-8. Record queue length and advance simulation time.
-
-This means a server that finishes a customer during a step may immediately receive another waiting customer in the same step.
-
-## Pending Arrivals
-
-The system keeps a `pendingArrivals` list because generated customers may have future arrival times.
-
-For example, a customer may be generated at time `4` with an arrival time of `6`. That customer should not enter the FIFO queue until simulation time reaches `6`.
+Stores customer number, arrival time, waiting time, and remaining transaction time.
 
 ## Metrics
 
-The console reports:
+The UI reports:
 
-- `Total customers served`
-- `Total waiting time`
-- `Average waiting time`
-- `Average queue length`
-- `Server utilization`
+- `Served`: number of customers who completed service
+- `Tot.Wait`: total waiting time of completed customers
+- `Avg Wait`: total waiting time divided by served customers
+- `Avg Q`: average queue length over executed steps
+- `Utilization`: busy server time divided by total server capacity
 
-Server utilization is calculated from busy server time divided by total available server capacity.
+When no customers have completed service yet, averages safely remain `0.0`.
 
-## Build
+## Running The Console UI
 
-This project does not currently use CMake or another build system. Compile manually with `g++`.
+The current `src/Main.cpp` starts `GuiUI`.
 
-From the project root:
+To run the console interface instead, change `src/Main.cpp` to include `ConsoleUI.h` and instantiate `ConsoleUI`:
+
+```cpp
+#include "presentation/ConsoleUI.h"
+
+int main()
+{
+    ConsoleUI ui;
+    ui.run();
+    return 0;
+}
+```
+
+Then build:
 
 ```bash
-g++ -std=c++17 -Isrc -Isrc/domain/model -Isrc/domain/enums \
+g++ -std=c++17 \
+  -Isrc \
+  -Isrc/domain/model \
+  -Isrc/domain/enums \
   src/Main.cpp \
   src/application/SimulationController.cpp \
   src/presentation/ConsoleUI.cpp \
@@ -220,49 +255,19 @@ Run:
 ./queue_sim
 ```
 
-## Console Usage
+## Current Limitations
 
-When the program starts, it displays an interactive menu:
+- There is no CMake or Makefile yet, so builds are manual.
+- The app uses raw pointers for customers and servers.
+- There is no automated test suite.
+- Runtime settings are not loaded from a config file.
+- The GUI currently creates two servers by default.
 
-```text
-1  Run one simulation step
-2  Run multiple steps
-0  Exit
-```
+## Suggested Next Steps
 
-Options:
-
-- `1`: run exactly one simulation step and display the current state
-- `2`: run multiple simulation steps and display metrics afterward
-- `0`: exit the program
-
-## Example Output
-
-```text
-+--------------------------------------+
-| Step completed                       |
-+--------------------------------------+
-Time: 3
-Queue (1):
-   1. Customer 4 | waiting: 1 | service left: 3
-Servers:
-  Server 1 | serving customer 2 | service left: 2
-  Server 2 | idle
-```
-
-## Current Design Notes
-
-- The project is organized with a basic presentation, application, and domain split.
-- Customer generation is now dynamic rather than hard-coded in the UI.
-- The console display has been improved with clearer state and metric formatting.
-- The code currently uses raw pointers for customers and servers. A future improvement would be to migrate ownership to `std::unique_ptr` to make memory management safer and clearer.
-
-## Recent Changes
-
-- Replaced hard-coded customer setup with dynamic `CustomerGenerator`.
-- Added support for generated customers with future arrival times through `pendingArrivals`.
-- Updated the simulation step order to generate arrivals, move arrived customers to the queue, assign customers before server updates, update servers, assign again after completed service, then increment waiting time.
-- Added `assignCustomers()` in `QueueSystem` to keep server assignment logic reusable.
-- Improved console output with a clearer header, menu, queue display, server display, and aligned metrics.
-- Added validated numeric input for console menu choices.
-- Updated the README to match the current project behavior and architecture.
+- Add a `CMakeLists.txt` file.
+- Replace raw pointer ownership with `std::unique_ptr`.
+- Add unit tests for `QueueSystem`, `Queue`, `Server`, and `CustomerGenerator`.
+- Add configurable server count and generator parameters in the GUI.
+- Export metrics to CSV.
+- Add reset/restart support in the GUI.
