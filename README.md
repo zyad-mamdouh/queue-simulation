@@ -263,11 +263,3 @@ Run:
 - Runtime settings are not loaded from a config file.
 - The GUI currently creates two servers by default.
 
-## Suggested Next Steps
-
-- Add a `CMakeLists.txt` file.
-- Replace raw pointer ownership with `std::unique_ptr`.
-- Add unit tests for `QueueSystem`, `Queue`, `Server`, and `CustomerGenerator`.
-- Add configurable server count and generator parameters in the GUI.
-- Export metrics to CSV.
-- Add reset/restart support in the GUI.
